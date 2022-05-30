@@ -14,6 +14,16 @@ node server.js
 
 Then import the script located at `http(s)://yourserver/client.js` in any webpage.
 
+### Arguments
+
+You can use arguments to control the functionality of the script.
+
+Use `--port` or `-p` to change the listening port and `--file` or `-f` to change the name of the payload file.
+
+```
+node server.js -p 8080 -f x.js
+```
+
 ### Asynchronous data exfiltration
 By default, the commands are executed through the eval function which is not asynchronous. To overcome this, I created a callback function (`window.oobsend(string)`) that sends data to the server asynchronously. Here's an example of how to use it to communicate with an internal API:
 

